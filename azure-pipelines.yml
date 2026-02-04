@@ -1,8 +1,4 @@
-resources:
-- repo: self
-  clean: true
-queue:
-  name: Hosted VS2017
+pool:
   demands: npm
 
 #Your build pipeline references an undefined variable named ‘Extension.OutputPath’. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab. See https://go.microsoft.com/fwlink/?linkid=865972
@@ -47,9 +43,8 @@ steps:
     verbose: false
     customCommand: 'run compile'
 
-- task: TfxInstaller@1
-  inputs:
-    version: 'v0.7.x'
+- task: TfxInstaller@5
+  displayName: "Use Node CLI for Azure DevOps (tfx-cli): v0.x"
 
 - task: ms-devlabs.vsts-developer-tools-build-tasks.package-extension-build-task.PackageVSTSExtension@1
   displayName: 'Package Extension: '
