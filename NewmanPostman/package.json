@@ -8,7 +8,7 @@
     "gallery-publish-rev": "npx tfx extension publish --rev-version",
     "clean": "npx rimraf ./*.vsix",
     "compile": "npx tsc -p .",
-    "install-task-lib": "npm install --save-dev",
+    "install-task-lib": "npm install --save-dev"
   },
   "dependencies": {
     "azure-pipelines-task-lib": "^4.13.0",
@@ -23,6 +23,6 @@
     "@types/q": "^1.5.8",
     "mocha": "^11.7.0",
     "sync-request": "^6.1.0",
-    "typescript": "^5.5.3"
+    "typescript": "^5.9.3"
   }
 }
