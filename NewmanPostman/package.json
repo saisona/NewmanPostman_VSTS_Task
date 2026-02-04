@@ -3,27 +3,26 @@
   "version": "1.0.1",
   "description": "package.json for task lib",
   "scripts": {
-    "package": "npm run clean  && npm run compile  && tfx extension create  --rev-version",
-    "gallery-publish": "tfx extension publish",
-    "gallery-publish-rev": "tfx extension publish --rev-version",
-    "clean": "rimraf ./*.vsix",
+    "package": "npm run clean  && npm run compile  && npx tfx extension create  --rev-version",
+    "gallery-publish": "npx tfx extension publish",
+    "gallery-publish-rev": "npx tfx extension publish --rev-version",
+    "clean": "npx rimraf ./*.vsix",
     "compile": "npx tsc -p .",
     "install-task-lib": "npm install --save-dev",
-    "pretest": "npx tsc -p .",
-    "test": "npx mocha Tests//TestSuite.js"
   },
   "dependencies": {
     "azure-pipelines-task-lib": "^4.13.0",
-    "reflect-metadata": "^0.2.2",
-    "is-url": "^1.2.4"
+    "is-url": "^1.2.4",
+    "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
+    "@types/is-url": "^1.2.32",
     "@types/minimist": "^1.2.5",
     "@types/node": "^20.14.10",
     "@types/normalize-package-data": "^2.4.4",
     "@types/q": "^1.5.8",
+    "mocha": "^11.7.0",
     "sync-request": "^6.1.0",
-    "typescript": "^5.5.3",
-    "mocha": "^11.7.0"
+    "typescript": "^5.5.3"
   }
 }

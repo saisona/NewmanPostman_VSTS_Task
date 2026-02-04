@@ -2,14 +2,22 @@ import path = require("path");
 
 import { ToolRunner } from "azure-pipelines-task-lib/toolrunner";
 import {
+    error,
     filePathSupplied,
+    find,
     getBoolInput,
+    getDelimitedInput,
     getInput,
     getPathInput,
+    match,
+    setResourcePath,
     setResult,
+    stats,
+    TaskResult,
     tool,
+    which,
 } from "azure-pipelines-task-lib";
-import "is-url";
+import isURL from "is-url";
 
 function GetToolRunner(collectionToRun: string) {
     let pathToNewman = getInput("pathToNewman", false);
@@ -20,7 +28,7 @@ function GetToolRunner(collectionToRun: string) {
         pathToNewman = "newman";
     }
 
-    const newman: ToolRunner = tool(tl.which(pathToNewman, true));
+    const newman: ToolRunner = tool(which(pathToNewman, true));
 
     newman.arg("run");
     newman.arg(collectionToRun);
@@ -30,14 +38,13 @@ function GetToolRunner(collectionToRun: string) {
     newman.argIf;
     newman.argIf(
         typeof sslClientCert != "undefined" &&
-            tl.filePathSupplied("sslClientCert"),
+            filePathSupplied("sslClientCert"),
         ["--ssl-client-cert", sslClientCert || ""],
     );
-    const sslClientKey = getPathInput("sslClientKey", false, true);
+    const sslClientKey = getPathInput("sslClientKey", false, true) || "";
     newman.argIf(
-        typeof sslClientKey != "undefined" &&
-            tl.filePathSupplied("sslClientKey"),
-        ["--ssl-client-key", sslClientKey | ""],
+        typeof sslClientKey != "undefined" && filePathSupplied("sslClientKey"),
+        ["--ssl-client-key", sslClientKey],
     );
     const sslInsecure = getBoolInput("sslInsecure");
     newman.argIf(sslInsecure, ["--insecure"]);
@@ -56,13 +63,13 @@ function GetToolRunner(collectionToRun: string) {
     newman.argIf(
         typeof reporterHtmlTemplate != "undefined" &&
             filePathSupplied("reporterHtmlTemplate"),
-        ["--reporter-html-template", reporterHtmlTemplate],
+        ["--reporter-html-template", reporterHtmlTemplate || ""],
     );
     const reporterHtmlExport = getPathInput("reporterHtmlExport");
     newman.argIf(
         typeof reporterHtmlExport != "undefined" &&
             filePathSupplied("reporterHtmlExport"),
-        ["--reporter-html-export", reporterHtmlExport],
+        ["--reporter-html-export", reporterHtmlExport || ""],
     );
     /**
      * Items for HTML extra https://www.npmjs.com/package/newman-reporter-htmlextra.
@@ -188,29 +195,28 @@ function GetToolRunner(collectionToRun: string) {
         });
     }
 
-    const globalVars: string[] = tl.getDelimitedInput("globalVars", "\n");
+    const globalVars: string[] = getDelimitedInput("globalVars", "\n");
     globalVars.forEach((globVar) => {
         newman.arg(["--global-var", globVar.trim()]);
     });
-    const envVars: string[] = tl.getDelimitedInput("envVars", "\n");
+    const envVars: string[] = getDelimitedInput("envVars", "\n");
     envVars.forEach((envVar) => {
         newman.arg(["--env-var", envVar.trim()]);
     });
-    const ignoreRedirect = tl.getBoolInput("ignoreRedirect");
-    newman.argIf(ignoreRedirect, ["--ignore-redirects"]);
+    newman.argIf(getBoolInput("ignoreRedirect"), ["--ignore-redirects"]);
 
-    const exportEnvironment = getPathInput("exportEnvironment");
-    newman.argIf(tl.filePathSupplied("exportEnvironment"), [
+    const exportEnvironment = getPathInput("exportEnvironment") || "";
+    newman.argIf(filePathSupplied("exportEnvironment"), [
         "--export-environment",
         exportEnvironment,
     ]);
-    const exportGlobals = getPathInput("exportGlobals");
-    newman.argIf(tl.filePathSupplied("exportGlobals"), [
+    const exportGlobals = getPathInput("exportGlobals") || "";
+    newman.argIf(filePathSupplied("exportGlobals"), [
         "--export-globals",
         exportGlobals,
     ]);
-    const exportCollection = getPathInput("exportCollection");
-    newman.argIf(tl.filePathSupplied("exportCollection"), [
+    const exportCollection = getPathInput("exportCollection") || "";
+    newman.argIf(filePathSupplied("exportCollection"), [
         "--export-collection",
         exportCollection,
     ]);
@@ -218,10 +224,11 @@ function GetToolRunner(collectionToRun: string) {
     const envType = getInput("environmentSourceType");
     if (envType == "file") {
         console.info("File used for environment");
-        newman.arg(["-e", getPathInput("environment", true, true)]);
+        const filePathInput = getPathInput("environment", true, true);
+        newman.arg(["-e", filePathInput || ""]);
     } else if (envType == "url") {
-        const envURl = getInput("environmentUrl", true);
-        if (isurl(envURl)) {
+        const envURl = getInput("environmentUrl", true) || "";
+        if (isURL(envURl)) {
             console.info("URL used for environment");
             newman.arg(["-e", envURl]);
         } else {
@@ -241,39 +248,39 @@ function GetToolRunner(collectionToRun: string) {
 async function run() {
     try {
         // tl.debug('executing newman')
-        tl.setResourcePath(path.join(__dirname, "task.json"));
-        var taskSuccess = true;
-        if (tl.getInput("collectionSourceType", true) == "file") {
+        setResourcePath(path.join(__dirname, "task.json"));
+        let taskSuccess = true;
+        if (getInput("collectionSourceType", true) == "file") {
             console.log("Collection Source Type is set to file");
             let collectionFileSource = getPathInput(
                 "collectionFileSource",
                 true,
                 true,
-            );
-            if (tl.stats(collectionFileSource).isDirectory()) {
-                let contents: string[] = tl.getDelimitedInput(
+            ) || "";
+            if (stats(collectionFileSource).isDirectory()) {
+                const contents: string[] = getDelimitedInput(
                     "Contents",
                     "\n",
                     true,
                 );
                 collectionFileSource = path.normalize(collectionFileSource);
 
-                let allPaths: string[] = tl.find(collectionFileSource);
-                let matchedPaths: string[] = tl.match(
+                const allPaths: string[] = find(collectionFileSource);
+                const matchedPaths: string[] = match(
                     allPaths,
                     contents,
                     collectionFileSource,
                 );
-                let matchedFiles: string[] = matchedPaths.filter((
+                const matchedFiles: string[] = matchedPaths.filter((
                     itemPath: string,
-                ) => !tl.stats(itemPath).isDirectory());
+                ) => !stats(itemPath).isDirectory());
 
                 console.log("found %d files", matchedFiles.length);
 
                 if (matchedFiles.length > 0) {
                     matchedFiles.forEach((file: string) => {
-                        var newman: trm.ToolRunner = GetToolRunner(file);
-                        var execResponse = newman.execSync();
+                        const newman: ToolRunner = GetToolRunner(file);
+                        const execResponse = newman.execSync();
                         // tl.debug(execResponse.stdout);
                         if (execResponse.code === 1) {
                             console.log(execResponse);
@@ -281,37 +288,38 @@ async function run() {
                         }
                     });
                 } else {
-                    tl.error(
+                    error(
                         "Could not find any collection files in the path provided",
                     );
                     taskSuccess = false;
                 }
             } else {
-                var newman: trm.ToolRunner = GetToolRunner(
-                    collectionFileSource,
+                const newman: ToolRunner = GetToolRunner(
+                    collectionFileSource || "",
                 );
-                await newman.exec();
+                await newman.execAsync();
             }
         } else {
-            let collectionFileUrl = tl.getInput("collectionURL", true);
-            if (isurl(collectionFileUrl)) {
-                var newman: trm.ToolRunner = GetToolRunner(collectionFileUrl);
-                await newman.exec();
+            const collectionFileUrl = getInput("collectionURL", true) || "";
+            if (isURL(collectionFileUrl)) {
+                const newman: ToolRunner = GetToolRunner(collectionFileUrl);
+                await newman.execAsync();
             } else {
-                tl.setResult(
-                    tl.TaskResult.Failed,
+                setResult(
+                    TaskResult.Failed,
                     'Provided string "' + collectionFileUrl +
                         '" for collection is not a valid url',
                 );
             }
         }
         if (taskSuccess) {
-            tl.setResult(tl.TaskResult.Succeeded, "Success");
+            setResult(TaskResult.Succeeded, "Success");
         } else {
-            tl.setResult(tl.TaskResult.Failed, "Failed");
+            setResult(TaskResult.Failed, "Failed");
         }
-    } catch (err) {
-        tl.setResult(tl.TaskResult.Failed, err.message);
+    } catch (err: unknown) {
+        const error = err as Error;
+        setResult(TaskResult.Failed, error.message);
     }
 }
 
