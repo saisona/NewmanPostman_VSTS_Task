@@ -431,7 +431,7 @@
   "instanceNameFormat": "Newman - Postman",
   "execution": {
     "Node20_1": {
-      "target": "newmantask.js"
+      "target": "dist/newmantask.js"
     }
   }
 }

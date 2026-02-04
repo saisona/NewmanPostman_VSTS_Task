@@ -9,19 +9,15 @@
   "icons": {
     "default": "static/images/logo-mark-404.png"
   },
-  "galleryFlags": ["Public"],
   "targets": [
     {
       "id": "Microsoft.VisualStudio.Services"
     }
   ],
-  "demands": ["api-version/3.0"],
   "tags": ["Newman", "Postman", "Rest", "Test"],
-  "categories": ["Build and release"],
+  "categories": ["Azure Pipelines"],
   "screenshots": [
-    {
-      "path": "static/images/screenshot.png"
-    }
+    { "path": "static/images/screenshot.png" }
   ],
   "content": {
     "license": {

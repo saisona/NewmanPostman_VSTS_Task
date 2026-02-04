@@ -3,12 +3,11 @@
   "version": "1.0.1",
   "description": "package.json for task lib",
   "scripts": {
-    "package": "npm run clean  && npm run compile  && npx tfx extension create  --rev-version",
-    "gallery-publish": "npx tfx extension publish",
-    "gallery-publish-rev": "npx tfx extension publish --rev-version",
+    "package": "npm run clean  && npm run compile  && npx tfx-cli extension create  --rev-version",
+    "gallery-publish": "npx tfx-cli extension publish",
+    "gallery-publish-rev": "npx tfx-cli extension publish --rev-version",
     "clean": "npx rimraf ./*.vsix",
-    "compile": "npx tsc -p .",
-    "install-task-lib": "npm install --save-dev"
+    "compile": "npx tsc -p ."
   },
   "dependencies": {
     "azure-pipelines-task-lib": "^4.13.0",
