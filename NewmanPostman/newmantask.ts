@@ -1,7 +1,7 @@
-import path = require("path");
-
+import path from "path";
 import { ToolRunner } from "azure-pipelines-task-lib/toolrunner";
 import {
+    debug,
     error,
     filePathSupplied,
     find,
@@ -18,6 +18,7 @@ import {
     which,
 } from "azure-pipelines-task-lib";
 import isURL from "is-url";
+import { ArgsReporter, ArgsSSL, ArgsVariables } from "./newmanArgs.ts";
 
 function GetToolRunner(collectionToRun: string) {
     let pathToNewman = getInput("pathToNewman", false);
@@ -33,121 +34,9 @@ function GetToolRunner(collectionToRun: string) {
     newman.arg("run");
     newman.arg(collectionToRun);
 
-    const sslClientCert = getPathInput("sslClientCert", false, true);
-    //NOTE: as getPathInput will throw it is safe
-    newman.argIf;
-    newman.argIf(
-        typeof sslClientCert != "undefined" &&
-            filePathSupplied("sslClientCert"),
-        ["--ssl-client-cert", sslClientCert || ""],
-    );
-    const sslClientKey = getPathInput("sslClientKey", false, true) || "";
-    newman.argIf(
-        typeof sslClientKey != "undefined" && filePathSupplied("sslClientKey"),
-        ["--ssl-client-key", sslClientKey],
-    );
-    const sslInsecure = getBoolInput("sslInsecure");
-    newman.argIf(sslInsecure, ["--insecure"]);
+    ArgsSSL(newman);
 
-    const unicodeDisabled = getBoolInput("unicodeDisabled");
-    newman.argIf(unicodeDisabled, ["--disable-unicode"]);
-
-    const forceNoColor = getBoolInput("forceNoColor");
-    newman.argIf(forceNoColor, ["--no-color"]);
-
-    const reporterHtmlTemplate = getPathInput(
-        "reporterHtmlTemplate",
-        false,
-        true,
-    );
-    newman.argIf(
-        typeof reporterHtmlTemplate != "undefined" &&
-            filePathSupplied("reporterHtmlTemplate"),
-        ["--reporter-html-template", reporterHtmlTemplate || ""],
-    );
-    const reporterHtmlExport = getPathInput("reporterHtmlExport");
-    newman.argIf(
-        typeof reporterHtmlExport != "undefined" &&
-            filePathSupplied("reporterHtmlExport"),
-        ["--reporter-html-export", reporterHtmlExport || ""],
-    );
-    /**
-     * Items for HTML extra https://www.npmjs.com/package/newman-reporter-htmlextra.
-     */
-    const reporterHtmlExtraTemplate = getPathInput(
-        "reporterHtmlExtraTemplate",
-        false,
-        true,
-    );
-    newman.argIf(
-        typeof reporterHtmlExtraTemplate != "undefined" &&
-            filePathSupplied("reporterHtmlExtraTemplate"),
-        ["--reporter-htmlextra-template ", reporterHtmlTemplate || ""],
-    );
-    const reporterHtmlExtraExport = getPathInput("reporterHtmlExtraExport");
-    newman.argIf(
-        typeof reporterHtmlExtraExport != "undefined" &&
-            filePathSupplied("reporterHtmlExtraExport"),
-        ["--reporter-htmlextra-export", reporterHtmlExtraExport || ""],
-    );
-    newman.argIf(getBoolInput("htmlExtraDarkTheme"), [
-        "--reporter-htmlextra-darkTheme",
-    ]);
-    newman.argIf(getBoolInput("htmlExtraLogs"), ["--reporter-htmlextra-logs"]);
-    newman.argIf(getBoolInput("htmlExtraTestPaging"), [
-        "--reporter-htmlextra-testPaging",
-    ]);
-
-    const htmlExtraReportTitle = getInput("htmlExtraReportTitle");
-    newman.argIf(
-        typeof htmlExtraReportTitle != "undefined" && htmlExtraReportTitle,
-        ["--reporter-htmlextra-title", htmlExtraReportTitle || ""],
-    );
-
-    const reporterJsonExport = getPathInput("reporterJsonExport");
-    newman.argIf(
-        typeof reporterJsonExport != "undefined" &&
-            filePathSupplied("reporterJsonExport"),
-        ["--reporter-json-export", reporterJsonExport || ""],
-    );
-    const reporterJUnitExport = getPathInput(
-        "reporterJUnitExport",
-        false,
-        false,
-    );
-    newman.argIf(
-        typeof reporterJUnitExport != "undefined" &&
-            filePathSupplied("reporterJUnitExport"),
-        ["--reporter-junit-export", reporterJUnitExport || ""],
-    );
-
-    const verbose = getBoolInput("verbose");
-    newman.argIf(verbose, ["--verbose"]);
-
-    const reporterList = getInput("reporters") || "";
-    const customReporter = getInput("customReporter") || "";
-    let newReporterList = "";
-
-    if (customReporter.length > 0) {
-        console.info("Custom report configuration detected");
-        if (
-            reporterList != "undefined" && reporterList.split(",").length != 0
-        ) { //there is at least one reporter from select
-            //append custom one to the list
-            newReporterList = reporterList + "," + customReporter.trim();
-        } else { //only custom report
-            newReporterList = customReporter.trim();
-        }
-    } else {
-        console.info("No custom report configured");
-        newReporterList = reporterList;
-    }
-    console.info("Reporter list is : " + newReporterList);
-
-    newman.argIf(
-        newReporterList != null && (newReporterList.split(",").length != 0),
-        ["-r", newReporterList],
-    );
+    ArgsReporter(newman);
 
     const delayRequest = getInput("delayRequest");
     newman.argIf(typeof delayRequest != "undefined" && delayRequest, [
@@ -175,53 +64,16 @@ function GetToolRunner(collectionToRun: string) {
         typeof numberOfIterations != "undefined" && numberOfIterations,
         ["-n", numberOfIterations || ""],
     );
-    const globalVariable = getPathInput("globalVariables", false, true);
-    newman.argIf(
-        typeof globalVariable != "undefined" &&
-            filePathSupplied("globalVariables"),
-        ["--globals", globalVariable || ""],
-    );
-    const dataFile = getPathInput("dataFile", false, true);
-    newman.argIf(
-        typeof globalVariable != "undefined" && filePathSupplied("dataFile"),
-        ["--iteration-data", dataFile || ""],
-    );
 
-    const folder = getInput("folder") || "";
-    if (folder.length > 0) {
-        const splitted = folder.split(",");
-        splitted.forEach((folder) => {
-            newman.arg(["--folder", folder.trim()]);
-        });
-    }
+    ArgsVariables(newman);
 
-    const globalVars: string[] = getDelimitedInput("globalVars", "\n");
-    globalVars.forEach((globVar) => {
-        newman.arg(["--global-var", globVar.trim()]);
-    });
-    const envVars: string[] = getDelimitedInput("envVars", "\n");
-    envVars.forEach((envVar) => {
-        newman.arg(["--env-var", envVar.trim()]);
-    });
-    newman.argIf(getBoolInput("ignoreRedirect"), ["--ignore-redirects"]);
-
-    const exportEnvironment = getPathInput("exportEnvironment") || "";
-    newman.argIf(filePathSupplied("exportEnvironment"), [
-        "--export-environment",
-        exportEnvironment,
-    ]);
-    const exportGlobals = getPathInput("exportGlobals") || "";
-    newman.argIf(filePathSupplied("exportGlobals"), [
-        "--export-globals",
-        exportGlobals,
-    ]);
     const exportCollection = getPathInput("exportCollection") || "";
     newman.argIf(filePathSupplied("exportCollection"), [
         "--export-collection",
         exportCollection,
     ]);
 
-    const envType = getInput("environmentSourceType");
+    const envType = getInput("environmentSourceType") || "";
     if (envType == "file") {
         console.info("File used for environment");
         const filePathInput = getPathInput("environment", true, true);
@@ -251,54 +103,7 @@ async function run() {
         setResourcePath(path.join(__dirname, "task.json"));
         let taskSuccess = true;
         if (getInput("collectionSourceType", true) == "file") {
-            console.log("Collection Source Type is set to file");
-            let collectionFileSource = getPathInput(
-                "collectionFileSource",
-                true,
-                true,
-            ) || "";
-            if (stats(collectionFileSource).isDirectory()) {
-                const contents: string[] = getDelimitedInput(
-                    "Contents",
-                    "\n",
-                    true,
-                );
-                collectionFileSource = path.normalize(collectionFileSource);
-
-                const allPaths: string[] = find(collectionFileSource);
-                const matchedPaths: string[] = match(
-                    allPaths,
-                    contents,
-                    collectionFileSource,
-                );
-                const matchedFiles: string[] = matchedPaths.filter((
-                    itemPath: string,
-                ) => !stats(itemPath).isDirectory());
-
-                console.log("found %d files", matchedFiles.length);
-
-                if (matchedFiles.length > 0) {
-                    matchedFiles.forEach((file: string) => {
-                        const newman: ToolRunner = GetToolRunner(file);
-                        const execResponse = newman.execSync();
-                        // tl.debug(execResponse.stdout);
-                        if (execResponse.code === 1) {
-                            console.log(execResponse);
-                            taskSuccess = false;
-                        }
-                    });
-                } else {
-                    error(
-                        "Could not find any collection files in the path provided",
-                    );
-                    taskSuccess = false;
-                }
-            } else {
-                const newman: ToolRunner = GetToolRunner(
-                    collectionFileSource || "",
-                );
-                await newman.execAsync();
-            }
+            taskSuccess = await handleSourceFile();
         } else {
             const collectionFileUrl = getInput("collectionURL", true) || "";
             if (isURL(collectionFileUrl)) {
@@ -307,8 +112,7 @@ async function run() {
             } else {
                 setResult(
                     TaskResult.Failed,
-                    'Provided string "' + collectionFileUrl +
-                        '" for collection is not a valid url',
+                    `Provided string "${collectionFileUrl}" for collection is not a valid url`,
                 );
             }
         }
@@ -321,6 +125,61 @@ async function run() {
         const error = err as Error;
         setResult(TaskResult.Failed, error.message);
     }
+}
+
+async function handleSourceFile() {
+    console.log("Collection Source Type is set to file");
+    let collectionFileSource = getPathInput(
+        "collectionFileSource",
+        true,
+        true,
+    ) || "";
+    if (stats(collectionFileSource).isDirectory()) {
+        const contents: string[] = getDelimitedInput(
+            "Contents",
+            "\n",
+            true,
+        );
+        collectionFileSource = path.normalize(collectionFileSource);
+
+        const allPaths: string[] = find(collectionFileSource);
+        const matchedPaths: string[] = match(
+            allPaths,
+            contents,
+            collectionFileSource,
+        );
+        const matchedFiles: string[] = matchedPaths.filter((itemPath: string) =>
+            !stats(itemPath).isDirectory()
+        );
+
+        console.log("found %d files", matchedFiles.length);
+
+        if (matchedFiles.length > 0) {
+            matchedFiles.forEach((file: string) => {
+                const newman: ToolRunner = GetToolRunner(file);
+                const execResponse = newman.execSync();
+                //TODO: handle debug
+                if (true) {
+                    debug(execResponse.stdout);
+                }
+                if (execResponse.code === 1) {
+                    console.log(execResponse);
+                    return false;
+                }
+            });
+        } else {
+            error(
+                "Could not find any collection files in the path provided",
+            );
+            taskSuccess = false;
+        }
+    } else {
+        const newman: ToolRunner = GetToolRunner(
+            collectionFileSource || "",
+        );
+        await newman.execAsync();
+    }
+    return taskSuccess;
 }
 
 run();
