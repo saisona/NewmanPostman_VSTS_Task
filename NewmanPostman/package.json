@@ -1,9 +1,16 @@
 {
   "name": "task",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "package.json for task lib",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "package": "npm run clean  && npm run compile  && tfx extension create  --rev-version",
+    "gallery-publish": "tfx extension publish",
+    "gallery-publish-rev": "tfx extension publish --rev-version",
+    "clean": "rimraf ./*.vsix",
+    "compile": "npx tsc -p .",
+    "install-task-lib": "npm install --save-dev",
+    "pretest": "npx tsc -p .",
+    "test": "npx mocha Tests//TestSuite.js"
   },
   "dependencies": {
     "azure-pipelines-task-lib": "^4.13.0",
